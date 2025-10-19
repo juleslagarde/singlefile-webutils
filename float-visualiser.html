@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IEEE 754 Float Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        h1 .tooltip {
+            display: none;
+        }
+
+        .mode-selector {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            padding: 8px 20px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .decimal-section {
+            margin-bottom: 20px;
+        }
+
+        .decimal-input {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .presets {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            justify-content: center;
+        }
+
+        .preset-btn {
+            padding: 5px 12px;
+            border: 1px solid #667eea;
+            border-radius: 6px;
+            background: white;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .bits-container {
+            margin-bottom: 20px;
+        }
+
+        .formula-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        .formula-sign {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        .formula-exp {
+            color: #f39c12;
+            font-weight: bold;
+        }
+
+        .formula-mant {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .formula-result {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .bits-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+
+        .bit-cell {
+            position: relative;
+            padding: 0;
+        }
+
+        @media (max-width: 768px) {
+            .bits-table {
+                margin-bottom: 5px;
+            }
+        }
+
+        .bit-number {
+            font-size: 8px;
+            color: #999;
+            text-align: center;
+            display: block;
+            height: 10px;
+        }
+
+        .bit {
+            width: 100%;
+            height: 32px;
+            border: 2px solid #667eea;
+            border-radius: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            background: white;
+            font-size: 14px;
+        }
+
+        .bit:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .bit.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .bit.sign {
+            border-color: #e74c3c;
+        }
+
+        .bit.sign.active {
+            background: #e74c3c;
+        }
+
+        .bit.exponent {
+            border-color: #f39c12;
+        }
+
+        .bit.exponent.active {
+            background: #f39c12;
+        }
+
+        .bit.mantissa {
+            border-color: #27ae60;
+        }
+
+        .bit.mantissa.active {
+            background: #27ae60;
+        }
+
+        .section-label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #666;
+            text-align: center;
+            padding: 5px;
+            white-space: nowrap;
+        }
+
+        .sign-label {
+            color: #e74c3c;
+        }
+
+        .exp-label {
+            color: #f39c12;
+        }
+
+        .mant-label {
+            color: #27ae60;
+        }
+
+        .info-compact {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            font-size: 13px;
+        }
+
+        .info-item {
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .info-label {
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .info-value {
+            font-weight: bold;
+            color: #333;
+            word-break: break-all;
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+            margin-left: 5px;
+            color: #667eea;
+            font-size: 14px;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 300px;
+            background-color: #333;
+            color: #fff;
+            text-align: left;
+            border-radius: 8px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -150px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>IEEE 754 Float Visualizer</h1>
+        
+        <div class="mode-selector">
+            <button class="mode-btn active" onclick="setMode(32)">32-bit Float</button>
+            <button class="mode-btn" onclick="setMode(64)">64-bit Double</button>
+        </div>
+
+        <div class="decimal-section">
+            <input type="text" class="decimal-input" id="decimalInput" placeholder="Enter a decimal number">
+            <div class="presets">
+                <button class="preset-btn" onclick="setPreset(0)">0</button>
+                <button class="preset-btn" onclick="setPreset(1)">1</button>
+                <button class="preset-btn" onclick="setPreset(2)">2</button>
+                <button class="preset-btn" onclick="setPreset(-1)">-1</button>
+                <button class="preset-btn" onclick="setPreset(0.5)">0.5</button>
+                <button class="preset-btn" onclick="setPreset(3.14159)">π</button>
+                <button class="preset-btn" onclick="setPreset(Infinity)">∞</button>
+                <button class="preset-btn" onclick="setPreset(-Infinity)">-∞</button>
+                <button class="preset-btn" onclick="setPreset(NaN)">NaN</button>
+            </div>
+        </div>
+
+        <table class="bits-table">
+            <tr id="bitNumbers"></tr>
+            <tr id="bitCells"></tr>
+            <tr id="sectionLabels"></tr>
+        </table>
+
+        <div id="bitsContainer" class="bits-container"></div>
+
+        <div class="formula-section">
+            <span id="formulaParts"></span>
+            &nbsp;&nbsp;=&nbsp;&nbsp;
+            <span class="formula-result" id="formulaOutput">0</span>
+        </div>
+
+        <div class="info-compact">
+            <div class="info-item">
+                <div class="info-label">Sign</div>
+                <div class="info-value" id="infoSign">+</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Exp (bin)</div>
+                <div class="info-value" id="infoExpBin">00000000</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Exp (dec)</div>
+                <div class="info-value" id="infoExpDec">0</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Actual Exp</div>
+                <div class="info-value" id="infoExpActual">-127</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Mantissa (dec)</div>
+                <div class="info-value" id="infoMantDec">1.0</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mode = 32;
+        let bits = new Array(32).fill(0);
+        let updatingFromInput = false;
+
+        function setMode(newMode) {
+            mode = newMode;
+            bits = new Array(mode).fill(0);
+            
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            renderBits();
+            updateFromBits();
+        }
+
+        function renderBits() {
+            const expBits = mode === 32 ? 8 : 11;
+            const mantBits = mode === 32 ? 23 : 52;
+            const isMobile = window.innerWidth <= 768;
+            const chunkSize = 16;
+            
+            const container = document.getElementById('bitsContainer');
+            container.innerHTML = '';
+            
+            if (isMobile) {
+                // Split into chunks of 16 bits
+                let bitIndex = 0;
+                while (bitIndex < mode) {
+                    const table = document.createElement('table');
+                    table.className = 'bits-table';
+                    
+                    const bitNumbers = document.createElement('tr');
+                    const bitCells = document.createElement('tr');
+                    const sectionLabels = document.createElement('tr');
+                    
+                    const endIndex = Math.min(bitIndex + chunkSize, mode);
+                    
+                    for (let i = bitIndex; i < endIndex; i++) {
+                        let td = document.createElement('td');
+                        td.className = 'bit-cell';
+                        td.innerHTML = `<span class="bit-number">${i}</span>`;
+                        bitNumbers.appendChild(td);
+                        
+                        td = document.createElement('td');
+                        td.className = 'bit-cell';
+                        
+                        let type = 'mantissa';
+                        if (i === 0) type = 'sign';
+                        else if (i <= expBits) type = 'exponent';
+                        
+                        td.appendChild(createBit(i, type));
+                        bitCells.appendChild(td);
+                        
+                        td = document.createElement('td');
+                        td.className = `section-label ${type === 'sign' ? 'sign-label' : type === 'exponent' ? 'exp-label' : 'mant-label'}`;
+                        
+                        // Add labels at appropriate positions
+                        if (i === 0) {
+                            td.textContent = 'S';
+                        } else if (i === 1 && endIndex > 1) {
+                            td.textContent = 'Exponent';
+                            td.colSpan = Math.min(expBits, endIndex - 1);
+                        } else if (i === expBits + 1 && endIndex > expBits + 1) {
+                            td.textContent = 'Mantissa';
+                            td.colSpan = endIndex - (expBits + 1);
+                        }
+                        
+                        if (i === 0 || i === 1 || i === expBits + 1) {
+                            sectionLabels.appendChild(td);
+                        }
+                    }
+                    
+                    table.appendChild(bitNumbers);
+                    table.appendChild(bitCells);
+                    table.appendChild(sectionLabels);
+                    container.appendChild(table);
+                    
+                    bitIndex = endIndex;
+                }
+            } else {
+                // Desktop: single table
+                const table = document.createElement('table');
+                table.className = 'bits-table';
+                
+                const bitNumbers = document.createElement('tr');
+                const bitCells = document.createElement('tr');
+                const sectionLabels = document.createElement('tr');
+                
+                // Sign bit
+                let td = document.createElement('td');
+                td.className = 'bit-cell';
+                td.innerHTML = `<span class="bit-number">0</span>`;
+                bitNumbers.appendChild(td);
+                
+                td = document.createElement('td');
+                td.className = 'bit-cell';
+                td.appendChild(createBit(0, 'sign'));
+                bitCells.appendChild(td);
+                
+                td = document.createElement('td');
+                td.className = 'section-label sign-label';
+                td.textContent = 'S';
+                sectionLabels.appendChild(td);
+                
+                // Exponent bits
+                for (let i = 1; i <= expBits; i++) {
+                    td = document.createElement('td');
+                    td.className = 'bit-cell';
+                    td.innerHTML = `<span class="bit-number">${i}</span>`;
+                    bitNumbers.appendChild(td);
+                    
+                    td = document.createElement('td');
+                    td.className = 'bit-cell';
+                    td.appendChild(createBit(i, 'exponent'));
+                    bitCells.appendChild(td);
+                    
+                    td = document.createElement('td');
+                    td.className = 'section-label exp-label';
+                    if (i === 1) {
+                        td.textContent = 'Exponent';
+                        td.colSpan = expBits;
+                    }
+                    if (i === 1) {
+                        sectionLabels.appendChild(td);
+                    }
+                }
+                
+                // Mantissa bits
+                for (let i = 1 + expBits; i < mode; i++) {
+                    td = document.createElement('td');
+                    td.className = 'bit-cell';
+                    td.innerHTML = `<span class="bit-number">${i}</span>`;
+                    bitNumbers.appendChild(td);
+                    
+                    td = document.createElement('td');
+                    td.className = 'bit-cell';
+                    td.appendChild(createBit(i, 'mantissa'));
+                    bitCells.appendChild(td);
+                    
+                    td = document.createElement('td');
+                    td.className = 'section-label mant-label';
+                    if (i === 1 + expBits) {
+                        td.textContent = 'Mantissa';
+                        td.colSpan = mantBits;
+                    }
+                    if (i === 1 + expBits) {
+                        sectionLabels.appendChild(td);
+                    }
+                }
+                
+                table.appendChild(bitNumbers);
+                table.appendChild(bitCells);
+                table.appendChild(sectionLabels);
+                container.appendChild(table);
+            }
+        }
+
+        function createBit(index, type) {
+            const bit = document.createElement('div');
+            bit.className = `bit ${type} ${bits[index] ? 'active' : ''}`;
+            bit.textContent = bits[index];
+            bit.onclick = () => toggleBit(index);
+            return bit;
+        }
+
+        function toggleBit(index) {
+            bits[index] = bits[index] ? 0 : 1;
+            renderBits();
+            updateFromBits();
+        }
+
+        function updateFromBits() {
+            if (updatingFromInput) return;
+            
+            const expBits = mode === 32 ? 8 : 11;
+            const mantBits = mode === 32 ? 23 : 52;
+            const bias = mode === 32 ? 127 : 1023;
+            
+            // Get sign
+            const sign = bits[0] ? -1 : 1;
+            document.getElementById('infoSign').textContent = sign > 0 ? '+' : '-';
+            
+            // Get exponent
+            let expBinary = '';
+            let expValue = 0;
+            for (let i = 1; i <= expBits; i++) {
+                expBinary += bits[i];
+                expValue = expValue * 2 + bits[i];
+            }
+            document.getElementById('infoExpBin').textContent = expBinary;
+            document.getElementById('infoExpDec').textContent = expValue;
+            
+            // Calculate actual exponent used in formula
+            let actualExp;
+            if (expValue === 0) {
+                actualExp = 1 - bias; // Denormalized
+            } else if (expValue === (mode === 32 ? 255 : 2047)) {
+                actualExp = 'Special'; // Infinity or NaN
+            } else {
+                actualExp = expValue - bias; // Normalized
+            }
+            document.getElementById('infoExpActual').textContent = actualExp;
+            
+            // Get mantissa
+            let mantValue = 1.0;
+            for (let i = 1 + expBits; i < mode; i++) {
+                mantValue += bits[i] * Math.pow(2, -(i - expBits));
+            }
+            document.getElementById('infoMantDec').textContent = mantValue.toFixed(10);
+            
+            // Calculate final value
+            let result;
+            let signText, expText, mantText;
+            
+            if (expValue === 0) {
+                // Denormalized
+                result = sign * (mantValue - 1) * Math.pow(2, 1 - bias);
+                signText = sign > 0 ? '1' : '-1';
+                expText = `2<sup>${1 - bias}</sup>`;
+                mantText = (mantValue - 1).toFixed(10);
+            } else if (expValue === (mode === 32 ? 255 : 2047)) {
+                // Infinity or NaN
+                result = (mantValue === 1.0) ? sign * Infinity : NaN;
+                if (mantValue === 1.0) {
+                    signText = sign > 0 ? '∞' : '-∞';
+                    expText = '';
+                    mantText = '';
+                } else {
+                    signText = 'NaN';
+                    expText = '';
+                    mantText = '';
+                }
+            } else {
+                // Normalized
+                result = sign * mantValue * Math.pow(2, expValue - bias);
+                signText = sign > 0 ? '1' : '-1';
+                expText = `2<sup>${expValue - bias}</sup>`;
+                mantText = mantValue.toFixed(10);
+            }
+            
+            // Update formula display
+            const formulaPartsEl = document.getElementById('formulaParts');
+            if (expText && mantText) {
+                formulaPartsEl.innerHTML = 
+                    `<span class="formula-sign">${signText}</span>&nbsp;&nbsp;×&nbsp;&nbsp;<span class="formula-exp">${expText}</span>&nbsp;&nbsp;×&nbsp;&nbsp;<span class="formula-mant">${mantText}</span>`;
+            } else {
+                formulaPartsEl.innerHTML = 
+                    `<span class="formula-sign">${signText}</span>`;
+            }
+            
+            document.getElementById('formulaOutput').textContent = result;
+            document.getElementById('decimalInput').value = result;
+        }
+
+        function updateFromDecimal() {
+            if (updatingFromInput) return;
+            updatingFromInput = true;
+            
+            const value = parseFloat(document.getElementById('decimalInput').value);
+            
+            if (isNaN(value) && document.getElementById('decimalInput').value.toLowerCase() !== 'nan') {
+                updatingFromInput = false;
+                return;
+            }
+            
+            let buffer, view;
+            if (mode === 32) {
+                buffer = new ArrayBuffer(4);
+                view = new DataView(buffer);
+                view.setFloat32(0, value, false);
+            } else {
+                buffer = new ArrayBuffer(8);
+                view = new DataView(buffer);
+                view.setFloat64(0, value, false);
+            }
+            
+            bits = [];
+            for (let i = 0; i < (mode / 8); i++) {
+                let byte = view.getUint8(i);
+                for (let j = 7; j >= 0; j--) {
+                    bits.push((byte >> j) & 1);
+                }
+            }
+            
+            renderBits();
+            updatingFromInput = false;
+            updateFromBits();
+        }
+
+        function setPreset(value) {
+            document.getElementById('decimalInput').value = value;
+            updateFromDecimal();
+        }
+
+        document.getElementById('decimalInput').addEventListener('input', updateFromDecimal);
+        
+        window.addEventListener('resize', () => {
+            renderBits();
+        });
+        
+        renderBits();
+        setPreset(0);
+    </script>
+</body>
+</html>
